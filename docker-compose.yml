@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: factures
+      POSTGRES_USER: factures
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change_moi}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U factures"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://factures:${DB_PASSWORD:-change_moi}@db:5432/factures
+      TEMP_DIR: /data/uploads_temp
+      FACTURES_DIR: /data/factures
+      # Ajuste ces 3 valeurs si un nouveau modele de facture n'est pas bien
+      # detecte (position/hauteur de l'entete a rogner, cf README).
+      Y_FRAC: "0.171"
+      H_FRAC: "0.257"
+      RIGHT_COL_RATIO: "0.48"
+    volumes:
+      - uploads_temp:/data/uploads_temp
+      - factures_data:/data/factures
+    ports:
+      - "8000:8000"
+
+volumes:
+  db_data:
+  uploads_temp:
+  factures_data:

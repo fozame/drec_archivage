@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Verifier / renommer</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav>
+  <span class="titre">Factures ART</span>
+  <a href="/static/index.html">Importer</a>
+  <a href="/static/revue.html" class="actif">Verifier / renommer</a>
+  <a href="/static/recherche.html">Rechercher</a>
+</nav>
+
+<main>
+  <h1>Verification et renommage</h1>
+  <p class="sous-titre">
+    Selectionne une facture a gauche, verifie la facture affichee au centre, corrige si besoin
+    les champs a droite, puis valide. Les plus fiables sont en haut par defaut.
+    <a href="#" id="lien-inverser-ordre">Voir les moins fiables en premier</a>
+  </p>
+
+  <div class="revue-layout">
+    <div class="colonne-liste" id="colonne-liste"></div>
+
+    <div class="colonne-image" id="colonne-image">
+      <span style="color:#9ca3af;">Selectionne une facture dans la liste</span>
+    </div>
+
+    <div class="colonne-formulaire" id="colonne-formulaire">
+      <div class="vide">Aucune facture selectionnee</div>
+    </div>
+  </div>
+</main>
+
+<script src="/static/app.js"></script>
+<script>
+let ordreActuel = "desc";
+let items = [];
+let selectionId = null;
+
+const colonneListe = document.getElementById("colonne-liste");
+const colonneImage = document.getElementById("colonne-image");
+const colonneFormulaire = document.getElementById("colonne-formulaire");
+
+async function chargerListe() {
+  items = await appelApi(`/api/pending?statut=a_verifier&ordre=${ordreActuel}`);
+  colonneListe.innerHTML = items.map(item => `
+    <div class="item-liste ${item.id === selectionId ? 'selectionne' : ''}" data-id="${item.id}">
+      <div class="nom-fichier">${item.fichier_original}</div>
+      <div class="score-ligne">
+        <span class="badge ${item.confiance}">${item.score}%</span>
+        ${item.nom_suggere ? '' : ' — nom incomplet'}
+      </div>
+    </div>
+  `).join("") || `<div class="vide">Aucune facture en attente</div>`;
+
+  colonneListe.querySelectorAll(".item-liste").forEach(el => {
+    el.onclick = () => selectionner(parseInt(el.dataset.id, 10));
+  });
+
+  if (!selectionId && items.length > 0) selectionner(items[0].id);
+  if (items.length === 0) {
+    selectionId = null;
+    colonneImage.innerHTML = `<span style="color:#9ca3af;">Aucune facture en attente</span>`;
+    colonneFormulaire.innerHTML = `<div class="vide">Rien a verifier pour le moment</div>`;
+  }
+}
+
+async function selectionner(id) {
+  selectionId = id;
+  chargerListe(); // rafraichit le surlignage sans re-fetch couteux visuel
+
+  const item = await appelApi(`/api/pending/${id}`);
+  colonneImage.innerHTML = `<img src="/api/pending/${id}/image" alt="${item.fichier_original}">`;
+  afficherFormulaire(item);
+}
+
+function afficherFormulaire(item) {
+  colonneFormulaire.innerHTML = `
+    <h2>${item.fichier_original} <span class="badge ${item.confiance}">${item.score}%</span></h2>
+
+    ${item.coherent === false ? `<div class="alerte-incoherence">
+      Le numero de facture et le code client (${item.code_client || '?'}) ne correspondent pas.
+      Verifie attentivement le numero avant de valider.
+    </div>` : ''}
+
+    <div class="champ">
+      <label>Numero de facture</label>
+      <input type="text" id="champ-numero" value="${item.numero_facture || ''}">
+    </div>
+
+    <div class="champ">
+      <label>Nom de l'exploitant ${item.nom_trouve_bd ? '(trouve dans la base)' : ''}</label>
+      <input type="text" id="champ-nom" value="${item.nom_exploitant || ''}">
+    </div>
+
+    <label style="font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Nom de fichier propose</label>
+    <div class="nom-suggere-box" id="nom-suggere">${item.nom_suggere || '(incomplet)'}</div>
+
+    <div class="actions-revue">
+      <button class="primaire" id="btn-valider">Valider et ranger</button>
+      <button class="danger" id="btn-rejeter">Rejeter</button>
+    </div>
+  `;
+
+  const champNumero = document.getElementById("champ-numero");
+  const champNom = document.getElementById("champ-nom");
+
+  async function sauvegarderModif() {
+    const maj = await appelApi(`/api/pending/${item.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ numero_facture: champNumero.value, nom_exploitant: champNom.value }),
+    });
+    document.getElementById("nom-suggere").textContent = maj.nom_suggere || "(incomplet)";
+  }
+
+  champNumero.onblur = sauvegarderModif;
+  champNom.onblur = sauvegarderModif;
+
+  document.getElementById("btn-valider").onclick = async () => {
+    try {
+      await sauvegarderModif();
+      const res = await appelApi(`/api/pending/${item.id}/valider`, { method: "POST" });
+      afficherToast(`Rangee sous : ${res.chemin_final}`);
+      selectionId = null;
+      await chargerListe();
+    } catch (err) {
+      afficherToast("Erreur : " + err.message, true);
+    }
+  };
+
+  document.getElementById("btn-rejeter").onclick = async () => {
+    await appelApi(`/api/pending/${item.id}/rejeter`, { method: "POST" });
+    afficherToast("Facture rejetee.");
+    selectionId = null;
+    await chargerListe();
+  };
+}
+
+document.getElementById("lien-inverser-ordre").onclick = (e) => {
+  e.preventDefault();
+  ordreActuel = ordreActuel === "desc" ? "asc" : "desc";
+  e.target.textContent = ordreActuel === "desc" ? "Voir les moins fiables en premier" : "Voir les plus fiables en premier";
+  selectionId = null;
+  chargerListe();
+};
+
+chargerListe();
+</script>
+</body>
+</html>

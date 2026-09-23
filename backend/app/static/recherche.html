@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Rechercher une facture</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav>
+  <span class="titre">Factures ART</span>
+  <a href="/static/index.html">Importer</a>
+  <a href="/static/revue.html">Verifier / renommer</a>
+  <a href="/static/recherche.html" class="actif">Rechercher</a>
+</nav>
+
+<main>
+  <h1>Rechercher une facture</h1>
+  <p class="sous-titre">Par numero de facture, nom de l'exploitant ou code client. Clique sur une ligne pour visualiser et imprimer.</p>
+
+  <div class="barre-recherche">
+    <input type="text" id="champ-recherche" placeholder="ex: ORANGE, 26A/FH/D/464, DLT-464...">
+    <button class="primaire" id="btn-rechercher">Rechercher</button>
+  </div>
+
+  <table class="resultats">
+    <thead>
+      <tr>
+        <th>Numero de facture</th>
+        <th>Exploitant</th>
+        <th>Produit</th>
+        <th>Delegation</th>
+        <th>Code client</th>
+        <th>Importee le</th>
+      </tr>
+    </thead>
+    <tbody id="corps-resultats"></tbody>
+  </table>
+</main>
+
+<script src="/static/app.js"></script>
+<script>
+const champRecherche = document.getElementById("champ-recherche");
+const corpsResultats = document.getElementById("corps-resultats");
+
+async function rechercher() {
+  const q = champRecherche.value.trim();
+  const resultats = await appelApi(`/api/factures?q=${encodeURIComponent(q)}`);
+  corpsResultats.innerHTML = resultats.map(f => `
+    <tr onclick="window.open('/api/factures/${f.id}/fichier', '_blank')">
+      <td>${f.numero_facture}</td>
+      <td>${f.nom_exploitant}</td>
+      <td>${f.produit || '-'}</td>
+      <td>${f.delegation || '-'}</td>
+      <td>${f.code_client || '-'}</td>
+      <td>${new Date(f.date_import).toLocaleDateString('fr-FR')}</td>
+    </tr>
+  `).join("") || `<tr><td colspan="6" style="text-align:center;color:#6b7280;">Aucun resultat</td></tr>`;
+}
+
+document.getElementById("btn-rechercher").onclick = rechercher;
+champRecherche.addEventListener("keydown", e => { if (e.key === "Enter") rechercher(); });
+
+rechercher();
+</script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Import des factures</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav>
+  <span class="titre">Factures ART</span>
+  <a href="/static/index.html" class="actif">Importer</a>
+  <a href="/static/revue.html">Verifier / renommer</a>
+  <a href="/static/recherche.html">Rechercher</a>
+</nav>
+
+<main>
+  <h1>Importer des factures scannees</h1>
+  <p class="sous-titre">Depose des fichiers, un dossier entier, ou une archive .zip. Chaque facture est analysee automatiquement puis placee dans "Verifier / renommer".</p>
+
+  <div class="panel">
+    <div class="zone-upload" id="zone-upload">
+      <p><strong>Glisse-depose des images ici</strong></p>
+      <p>ou utilise le bouton ci-dessous</p>
+      <div class="boutons-upload">
+        <div class="menu-ajout">
+          <button class="primaire" id="btn-ajouter">+ Ajouter des factures</button>
+          <div class="menu-ajout-options" id="menu-ajout-options">
+            <button type="button" id="opt-fichiers">Des fichiers</button>
+            <button type="button" id="opt-dossier">Un dossier</button>
+            <button type="button" id="opt-zip">Une archive .zip</button>
+          </div>
+        </div>
+      </div>
+      <div id="liste-fichiers"></div>
+    </div>
+
+    <input type="file" id="input-fichiers" multiple accept=".jpg,.jpeg,.png,.tif,.tiff,.bmp" hidden>
+    <input type="file" id="input-dossier" webkitdirectory directory multiple hidden>
+    <input type="file" id="input-zip" accept=".zip" hidden>
+
+    <div class="boutons-upload" style="margin-top:20px;">
+      <button class="primaire" id="btn-envoyer" disabled>Analyser les factures</button>
+      <button id="btn-vider" disabled>Vider la selection</button>
+    </div>
+  </div>
+</main>
+
+<script src="/static/app.js"></script>
+<script>
+let fichiersSelectionnes = [];
+
+const zoneUpload = document.getElementById("zone-upload");
+const listeFichiers = document.getElementById("liste-fichiers");
+const btnEnvoyer = document.getElementById("btn-envoyer");
+const btnVider = document.getElementById("btn-vider");
+
+function ajouterFichiers(fileList) {
+  for (const f of fileList) fichiersSelectionnes.push(f);
+  rafraichirListe();
+}
+
+function rafraichirListe() {
+  listeFichiers.innerHTML = fichiersSelectionnes
+    .map(f => `<div>${f.webkitRelativePath || f.name} (${(f.size / 1024).toFixed(0)} Ko)</div>`)
+    .join("");
+  const actif = fichiersSelectionnes.length > 0;
+  btnEnvoyer.disabled = !actif;
+  btnVider.disabled = !actif;
+}
+
+// Un seul bouton "Ajouter" qui ouvre un petit menu avec les 3 façons
+// d'ajouter des factures, plutot que 3 boutons cote a cote.
+const btnAjouter = document.getElementById("btn-ajouter");
+const menuOptions = document.getElementById("menu-ajout-options");
+
+btnAjouter.onclick = (e) => {
+  e.stopPropagation();
+  menuOptions.classList.toggle("visible");
+};
+document.addEventListener("click", () => menuOptions.classList.remove("visible"));
+
+document.getElementById("opt-fichiers").onclick = () => document.getElementById("input-fichiers").click();
+document.getElementById("opt-dossier").onclick = () => document.getElementById("input-dossier").click();
+document.getElementById("opt-zip").onclick = () => document.getElementById("input-zip").click();
+
+document.getElementById("input-fichiers").onchange = e => ajouterFichiers(e.target.files);
+document.getElementById("input-dossier").onchange = e => ajouterFichiers(e.target.files);
+document.getElementById("input-zip").onchange = e => ajouterFichiers(e.target.files);
+
+zoneUpload.addEventListener("dragover", e => { e.preventDefault(); zoneUpload.classList.add("survol"); });
+zoneUpload.addEventListener("dragleave", () => zoneUpload.classList.remove("survol"));
+zoneUpload.addEventListener("drop", e => {
+  e.preventDefault();
+  zoneUpload.classList.remove("survol");
+  ajouterFichiers(e.dataTransfer.files);
+});
+
+btnVider.onclick = () => { fichiersSelectionnes = []; rafraichirListe(); };
+
+btnEnvoyer.onclick = async () => {
+  if (fichiersSelectionnes.length === 0) return;
+  btnEnvoyer.disabled = true;
+  btnEnvoyer.textContent = "Analyse en cours...";
+
+  const formData = new FormData();
+  for (const f of fichiersSelectionnes) formData.append("files", f);
+
+  try {
+    const resume = await appelApi("/api/upload", { method: "POST", body: formData });
+    afficherToast(`${resume.traites} facture(s) analysee(s)` + (resume.erreurs ? `, ${resume.erreurs} erreur(s)` : ""));
+    fichiersSelectionnes = [];
+    rafraichirListe();
+    setTimeout(() => { window.location.href = "/static/revue.html"; }, 800);
+  } catch (err) {
+    afficherToast("Erreur : " + err.message, true);
+    btnEnvoyer.disabled = false;
+    btnEnvoyer.textContent = "Analyser les factures";
+  }
+};
+</script>
+</body>
+</html>
