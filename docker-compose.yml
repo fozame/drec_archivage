@@ -33,7 +33,7 @@ services:
       - uploads_temp:/data/uploads_temp
       - factures_data:/data/factures
     ports:
-      - "6000:6000"
+      - "8080:8000"
 
 volumes:
   db_data:
