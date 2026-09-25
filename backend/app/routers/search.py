@@ -56,3 +56,20 @@ def fichier_facture(facture_id: int, db: Session = Depends(get_db)):
     if not chemin.exists():
         raise HTTPException(404, "Fichier introuvable sur le disque")
     return FileResponse(chemin)
+
+
+@router.delete("/{facture_id}")
+def supprimer_facture(facture_id: int, db: Session = Depends(get_db)):
+    """Supprime definitivement une facture : le fichier sur le disque ET
+    son entree en base. Utilise depuis la page de recherche (ex: doublon,
+    scan de mauvaise qualite, erreur de classement)."""
+    facture = db.query(Facture).get(facture_id)
+    if not facture:
+        raise HTTPException(404, "Facture introuvable")
+
+    chemin = FACTURES_DIR / facture.chemin_fichier
+    Path(chemin).unlink(missing_ok=True)
+
+    db.delete(facture)
+    db.commit()
+    return {"ok": True, "message": "Facture supprimee."}

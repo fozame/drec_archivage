@@ -11,11 +11,12 @@
   <a href="/static/index.html">Importer</a>
   <a href="/static/revue.html">Verifier / renommer</a>
   <a href="/static/recherche.html" class="actif">Rechercher</a>
+  <a href="/static/stats.html">Statistiques</a>
 </nav>
 
 <main>
   <h1>Rechercher une facture</h1>
-  <p class="sous-titre">Par numero de facture, nom de l'exploitant ou code client. Clique sur une ligne pour visualiser et imprimer.</p>
+  <p class="sous-titre">Par numero de facture, nom de l'exploitant ou code client. Clique sur une ligne pour visualiser, imprimer, naviguer ou supprimer.</p>
 
   <div class="barre-recherche">
     <input type="text" id="champ-recherche" placeholder="ex: ORANGE, 26A/FH/D/464, DLT-464...">
@@ -37,16 +38,40 @@
   </table>
 </main>
 
+<!-- Visionneuse : image + navigation precedent/suivant + impression + suppression -->
+<div class="visionneuse" id="visionneuse">
+  <div class="visionneuse-barre">
+    <div>
+      <strong id="v-numero"></strong>
+      <span id="v-nom" style="color:#9ca3af; margin-left:10px;"></span>
+      <span id="v-position" style="color:#6b7280; margin-left:10px; font-size:13px;"></span>
+    </div>
+    <div class="visionneuse-actions">
+      <button id="v-imprimer">Imprimer</button>
+      <button class="danger" id="v-supprimer">Supprimer</button>
+      <button id="v-fermer">✕ Fermer</button>
+    </div>
+  </div>
+  <div class="visionneuse-corps">
+    <button class="v-nav" id="v-precedent" title="Precedent (fleche gauche)">&#8592;</button>
+    <img id="v-image" alt="">
+    <button class="v-nav" id="v-suivant" title="Suivant (fleche droite)">&#8594;</button>
+  </div>
+</div>
+
 <script src="/static/app.js"></script>
 <script>
 const champRecherche = document.getElementById("champ-recherche");
 const corpsResultats = document.getElementById("corps-resultats");
 
+let resultatsActuels = [];
+let indexActuel = -1;
+
 async function rechercher() {
   const q = champRecherche.value.trim();
-  const resultats = await appelApi(`/api/factures?q=${encodeURIComponent(q)}`);
-  corpsResultats.innerHTML = resultats.map(f => `
-    <tr onclick="window.open('/api/factures/${f.id}/fichier', '_blank')">
+  resultatsActuels = await appelApi(`/api/factures?q=${encodeURIComponent(q)}`);
+  corpsResultats.innerHTML = resultatsActuels.map((f, i) => `
+    <tr data-index="${i}">
       <td>${f.numero_facture}</td>
       <td>${f.nom_exploitant}</td>
       <td>${f.produit || '-'}</td>
@@ -55,10 +80,98 @@ async function rechercher() {
       <td>${new Date(f.date_import).toLocaleDateString('fr-FR')}</td>
     </tr>
   `).join("") || `<tr><td colspan="6" style="text-align:center;color:#6b7280;">Aucun resultat</td></tr>`;
+
+  corpsResultats.querySelectorAll("tr[data-index]").forEach(tr => {
+    tr.onclick = () => ouvrirVisionneuse(parseInt(tr.dataset.index, 10));
+  });
 }
 
 document.getElementById("btn-rechercher").onclick = rechercher;
 champRecherche.addEventListener("keydown", e => { if (e.key === "Enter") rechercher(); });
+
+// --- Visionneuse ---
+
+const visionneuse = document.getElementById("visionneuse");
+const vImage = document.getElementById("v-image");
+const vNumero = document.getElementById("v-numero");
+const vNom = document.getElementById("v-nom");
+const vPosition = document.getElementById("v-position");
+
+function ouvrirVisionneuse(index) {
+  indexActuel = index;
+  afficherFactureActuelle();
+  visionneuse.classList.add("visible");
+}
+
+function afficherFactureActuelle() {
+  const f = resultatsActuels[indexActuel];
+  if (!f) return;
+  vImage.src = `/api/factures/${f.id}/fichier`;
+  vNumero.textContent = f.numero_facture;
+  vNom.textContent = f.nom_exploitant;
+  vPosition.textContent = `${indexActuel + 1} / ${resultatsActuels.length}`;
+}
+
+function fermerVisionneuse() {
+  visionneuse.classList.remove("visible");
+  vImage.src = "";
+}
+
+function facturePrecedente() {
+  if (indexActuel > 0) { indexActuel--; afficherFactureActuelle(); }
+}
+
+function factureSuivante() {
+  if (indexActuel < resultatsActuels.length - 1) { indexActuel++; afficherFactureActuelle(); }
+}
+
+document.getElementById("v-fermer").onclick = fermerVisionneuse;
+document.getElementById("v-precedent").onclick = facturePrecedente;
+document.getElementById("v-suivant").onclick = factureSuivante;
+
+document.addEventListener("keydown", e => {
+  if (!visionneuse.classList.contains("visible")) return;
+  if (e.key === "Escape") fermerVisionneuse();
+  if (e.key === "ArrowLeft") facturePrecedente();
+  if (e.key === "ArrowRight") factureSuivante();
+});
+
+// Impression : charge l'image dans un iframe cache puis declenche l'impression
+// du navigateur (au lieu d'imprimer toute la page avec le menu, la recherche...).
+document.getElementById("v-imprimer").onclick = () => {
+  const f = resultatsActuels[indexActuel];
+  if (!f) return;
+  const iframe = document.createElement("iframe");
+  iframe.style.display = "none";
+  document.body.appendChild(iframe);
+  iframe.onload = () => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => document.body.removeChild(iframe), 1000);
+  };
+  iframe.src = `/api/factures/${f.id}/fichier`;
+};
+
+document.getElementById("v-supprimer").onclick = async () => {
+  const f = resultatsActuels[indexActuel];
+  if (!f) return;
+  if (!confirm(`Supprimer definitivement la facture "${f.numero_facture}" (${f.nom_exploitant}) ?\nCette action est irreversible.`)) return;
+
+  try {
+    await appelApi(`/api/factures/${f.id}`, { method: "DELETE" });
+    afficherToast("Facture supprimee.");
+    resultatsActuels.splice(indexActuel, 1);
+    if (resultatsActuels.length === 0) {
+      fermerVisionneuse();
+    } else {
+      if (indexActuel >= resultatsActuels.length) indexActuel = resultatsActuels.length - 1;
+      afficherFactureActuelle();
+    }
+    rechercher();
+  } catch (err) {
+    afficherToast("Erreur : " + err.message, true);
+  }
+};
 
 rechercher();
 </script>

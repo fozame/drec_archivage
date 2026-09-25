@@ -310,6 +310,121 @@ table.resultats th { background: #f9fafb; font-size: 12px; text-transform: upper
 table.resultats tr:last-child td { border-bottom: none; }
 table.resultats tr:hover { background: #f9fafb; cursor: pointer; }
 
+table.resultats tbody tr { cursor: pointer; }
+
+/* --- Visionneuse (image plein ecran avec navigation) --- */
+
+.visionneuse {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 17, 22, .92);
+  z-index: 100;
+  flex-direction: column;
+}
+
+.visionneuse.visible { display: flex; }
+
+.visionneuse-barre {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.visionneuse-actions { display: flex; gap: 8px; }
+
+.visionneuse-actions button {
+  background: rgba(255,255,255,.12);
+  color: white;
+}
+
+.visionneuse-actions button:hover { background: rgba(255,255,255,.22); }
+.visionneuse-actions button.danger { background: rgba(220,38,38,.25); color: #fca5a5; }
+.visionneuse-actions button.danger:hover { background: rgba(220,38,38,.4); }
+
+.visionneuse-corps {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 0 20px 20px;
+  min-height: 0;
+}
+
+.visionneuse-corps img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+}
+
+.v-nav {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.12);
+  color: white;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.v-nav:hover { background: rgba(255,255,255,.25); }
+
+/* --- Statistiques --- */
+
+.cartes-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.carte-stat {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+}
+
+.carte-valeur { font-size: 32px; font-weight: 700; color: var(--primary); }
+.carte-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+.grille-graphiques {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.ligne-barre {
+  display: grid;
+  grid-template-columns: 110px 1fr 40px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.barre-label { color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.barre-piste { background: #f0f1f4; border-radius: 6px; height: 18px; overflow: hidden; }
+.barre-remplissage { background: var(--primary); height: 100%; border-radius: 6px; min-width: 4px; }
+.barre-valeur { text-align: right; color: var(--text-muted); font-weight: 600; }
+
+.barres-mois .ligne-barre { grid-template-columns: 70px 1fr 40px; }
+
+@media (max-width: 900px) {
+  .grille-graphiques { grid-template-columns: 1fr; }
+}
+
 .toast {
   position: fixed;
   bottom: 24px;
