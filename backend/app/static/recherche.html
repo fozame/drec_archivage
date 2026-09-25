@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Rechercher une facture</title>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/style.css?v=2">
 </head>
 <body>
 <nav>
@@ -59,7 +59,7 @@
   </div>
 </div>
 
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=2"></script>
 <script>
 const champRecherche = document.getElementById("champ-recherche");
 const corpsResultats = document.getElementById("corps-resultats");
@@ -101,6 +101,7 @@ function ouvrirVisionneuse(index) {
   indexActuel = index;
   afficherFactureActuelle();
   visionneuse.classList.add("visible");
+  document.body.classList.add("verrouille"); // empeche de scroller la page derriere
 }
 
 function afficherFactureActuelle() {
@@ -114,6 +115,7 @@ function afficherFactureActuelle() {
 
 function fermerVisionneuse() {
   visionneuse.classList.remove("visible");
+  document.body.classList.remove("verrouille");
   vImage.src = "";
 }
 

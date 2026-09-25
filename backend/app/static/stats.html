@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Statistiques</title>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/style.css?v=2">
 </head>
 <body>
 <nav>
@@ -37,24 +37,38 @@
   </div>
 </main>
 
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=2"></script>
 <script>
-function dessinerBarres(conteneurId, donnees, cleLabel = "cle") {
+// Couleur fixe par delegation (identite -> meme couleur partout, peu importe
+// l'ordre ou le tri). "Non classee" reste grise (categorie "autre"), et tout
+// nom inconnu retombe sur la meme couleur neutre plutot que d'inventer une
+// teinte au hasard.
+const COULEUR_DELEGATION = {
+  "Douala": "var(--cat-1)",
+  "Yaounde": "var(--cat-2)",
+  "Bamenda": "var(--cat-3)",
+  "Garoua": "var(--cat-4)",
+};
+
+function dessinerBarres(conteneurId, donnees, options = {}) {
   const conteneur = document.getElementById(conteneurId);
   if (donnees.length === 0) {
     conteneur.innerHTML = `<p style="color:#6b7280;font-size:14px;">Aucune donnee pour le moment.</p>`;
     return;
   }
   const max = Math.max(...donnees.map(d => d.total), 1);
-  conteneur.innerHTML = donnees.map(d => `
+  conteneur.innerHTML = donnees.map(d => {
+    const couleur = options.couleurParCle ? (options.couleurParCle[d.cle] || "var(--cat-autre)") : "var(--primary)";
+    return `
     <div class="ligne-barre">
-      <div class="barre-label">${d[cleLabel]}</div>
+      <div class="barre-label">${d.cle}</div>
       <div class="barre-piste">
-        <div class="barre-remplissage" style="width:${(d.total / max * 100).toFixed(1)}%"></div>
+        <div class="barre-remplissage" style="width:${(d.total / max * 100).toFixed(1)}%; background:${couleur};"></div>
       </div>
       <div class="barre-valeur">${d.total}</div>
     </div>
-  `).join("");
+  `;
+  }).join("");
 }
 
 function formatMois(cleMois) {
@@ -67,21 +81,30 @@ async function chargerStats() {
   const stats = await appelApi("/api/stats");
 
   document.getElementById("cartes-stats").innerHTML = `
-    <div class="carte-stat">
-      <div class="carte-valeur">${stats.total_factures}</div>
-      <div class="carte-label">Factures archivees</div>
+    <div class="carte-stat" style="--accent: var(--cat-1);">
+      <div class="carte-icone">&#128193;</div>
+      <div class="carte-texte">
+        <div class="carte-valeur">${stats.total_factures}</div>
+        <div class="carte-label">Factures archivees</div>
+      </div>
     </div>
-    <div class="carte-stat">
-      <div class="carte-valeur">${stats.total_en_attente}</div>
-      <div class="carte-label">En attente de verification</div>
+    <div class="carte-stat" style="--accent: var(--cat-4);">
+      <div class="carte-icone">&#128337;</div>
+      <div class="carte-texte">
+        <div class="carte-valeur">${stats.total_en_attente}</div>
+        <div class="carte-label">En attente de verification</div>
+      </div>
     </div>
-    <div class="carte-stat">
-      <div class="carte-valeur">${stats.score_moyen}%</div>
-      <div class="carte-label">Score de confiance moyen</div>
+    <div class="carte-stat" style="--accent: var(--cat-3);">
+      <div class="carte-icone">&#9989;</div>
+      <div class="carte-texte">
+        <div class="carte-valeur">${stats.score_moyen}%</div>
+        <div class="carte-label">Score de confiance moyen</div>
+      </div>
     </div>
   `;
 
-  dessinerBarres("graphique-delegation", stats.par_delegation);
+  dessinerBarres("graphique-delegation", stats.par_delegation, { couleurParCle: COULEUR_DELEGATION });
   dessinerBarres("graphique-produit", stats.par_produit);
 
   const parMois = stats.par_mois.map(m => ({ cle: formatMois(m.mois), total: m.total }));

@@ -12,6 +12,13 @@
   --moyenne: #d97706;
   --non-detecte: #dc2626;
   --radius: 10px;
+
+  /* Palette categorielle (identite), ordre fixe, validee CVD/contraste */
+  --cat-1: #2a78d6; /* bleu */
+  --cat-2: #eb6834; /* orange */
+  --cat-3: #1baf7a; /* aqua */
+  --cat-4: #eda100; /* jaune */
+  --cat-autre: #9ca3af; /* gris neutre pour "non classee" */
 }
 
 * { box-sizing: border-box; }
@@ -66,6 +73,13 @@ p.sous-titre { color: var(--text-muted); margin: 0 0 20px; font-size: 14px; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 20px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+}
+
+.panel h2 {
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
 }
 
 .zone-upload {
@@ -318,10 +332,12 @@ table.resultats tbody tr { cursor: pointer; }
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(15, 17, 22, .92);
-  z-index: 100;
+  background: rgba(10, 11, 15, .98);
+  z-index: 1000;
   flex-direction: column;
 }
+
+body.verrouille { overflow: hidden; }
 
 .visionneuse.visible { display: flex; }
 
@@ -391,13 +407,30 @@ table.resultats tbody tr { cursor: pointer; }
 .carte-stat {
   background: var(--panel);
   border: 1px solid var(--border);
+  border-left: 4px solid var(--accent, var(--primary));
   border-radius: var(--radius);
-  padding: 20px;
-  text-align: center;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
-.carte-valeur { font-size: 32px; font-weight: 700; color: var(--primary); }
-.carte-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+.carte-icone {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent, var(--primary)) 14%, white);
+  color: var(--accent, var(--primary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  flex-shrink: 0;
+}
+
+.carte-texte { text-align: left; }
+.carte-valeur { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.carte-label { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
 
 .grille-graphiques {
   display: grid;
