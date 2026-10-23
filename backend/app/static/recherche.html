@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Rechercher une facture</title>
-<link rel="stylesheet" href="/static/style.css?v=3">
+<link rel="stylesheet" href="/static/style.css?v=4">
 </head>
 <body>
 <nav>
@@ -47,6 +47,7 @@
       <span id="v-position" style="color:#6b7280; margin-left:10px; font-size:13px;"></span>
     </div>
     <div class="visionneuse-actions">
+      <button id="v-zoom" title="Alterne : page entiere / pleine largeur (defilement)">Pleine largeur</button>
       <button id="v-modifier">Modifier</button>
       <button id="v-imprimer">Imprimer</button>
       <button class="danger" id="v-supprimer">Supprimer</button>
@@ -61,12 +62,12 @@
   </div>
   <div class="visionneuse-corps">
     <button class="v-nav" id="v-precedent" title="Precedent (fleche gauche)">&#8592;</button>
-    <img id="v-image" alt="">
+    <div class="v-scene" id="v-scene"><img id="v-image" alt=""></div>
     <button class="v-nav" id="v-suivant" title="Suivant (fleche droite)">&#8594;</button>
   </div>
 </div>
 
-<script src="/static/app.js?v=3"></script>
+<script src="/static/app.js?v=4"></script>
 <script>
 const champRecherche = document.getElementById("champ-recherche");
 const corpsResultats = document.getElementById("corps-resultats");
@@ -114,6 +115,7 @@ function ouvrirVisionneuse(index) {
 function afficherFactureActuelle() {
   const f = resultatsActuels[indexActuel];
   if (!f) return;
+  vScene.scrollTop = 0;
   vImage.src = `/api/factures/${f.id}/fichier?t=${Date.now()}`;
   vNumero.textContent = f.numero_facture;
   vNom.textContent = f.nom_exploitant;
@@ -134,6 +136,14 @@ function factureSuivante() {
   if (indexActuel < resultatsActuels.length - 1) { indexActuel++; afficherFactureActuelle(); }
 }
 
+const vScene = document.getElementById("v-scene");
+const vZoom = document.getElementById("v-zoom");
+vZoom.onclick = () => {
+  const largeur = vScene.classList.toggle("largeur");
+  vZoom.textContent = largeur ? "Page entiere" : "Pleine largeur";
+  vScene.scrollTop = 0;
+};
+vImage.onclick = () => vZoom.click();
 document.getElementById("v-fermer").onclick = fermerVisionneuse;
 document.getElementById("v-precedent").onclick = facturePrecedente;
 document.getElementById("v-suivant").onclick = factureSuivante;
@@ -160,9 +170,11 @@ document.getElementById("v-imprimer").onclick = () => {
   doc.open();
   doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${f.numero_facture}</title>
     <style>
-      @page { size: A4 portrait; margin: 10mm; }
+      @page { margin: 8mm; }
       html, body { margin: 0; padding: 0; }
-      img { display: block; width: 190mm; height: 277mm; object-fit: contain; }
+      body { text-align: center; }
+      img { display: block; margin: 0 auto; max-width: 100%; max-height: 255mm;
+            width: auto; height: auto; object-fit: contain; page-break-inside: avoid; break-inside: avoid; }
     </style></head><body><img id="im" src="${url}"></body></html>`);
   doc.close();
   const im = doc.getElementById("im");

@@ -332,7 +332,7 @@ table.resultats tbody tr { cursor: pointer; }
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(10, 11, 15, .98);
+  background: #0a0b0f;
   z-index: 1000;
   flex-direction: column;
 }
@@ -363,26 +363,45 @@ body.verrouille { overflow: hidden; }
 
 .visionneuse-corps {
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 0 20px 20px;
+  position: relative;
   min-height: 0;
+  display: flex;
 }
 
-.visionneuse-corps img {
-  max-width: calc(100vw - 180px);
-  max-height: calc(100vh - 100px);
+.v-scene {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0 0 12px;
+}
+
+/* Page entiere : l'image occupe toute la hauteur disponible */
+.v-scene img {
+  height: 100%;
   width: auto;
-  height: auto;
+  max-width: 100%;
   object-fit: contain;
   background: white;
-  border-radius: 6px;
   box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  cursor: zoom-in;
+}
+
+/* Pleine largeur : lisible, on defile verticalement */
+.v-scene.largeur img {
+  height: auto;
+  width: min(100%, 1100px);
+  max-width: none;
+  cursor: zoom-out;
 }
 
 .v-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
   flex-shrink: 0;
   width: 44px;
   height: 44px;
@@ -495,4 +514,7 @@ body.verrouille { overflow: hidden; }
 }
 .visionneuse-edition button { background: rgba(255,255,255,.12); color: white; }
 .visionneuse-edition button.primaire { background: var(--primary); }
-.visionneuse-edition.visible ~ .visionneuse-corps img { max-height: calc(100vh - 175px); }
+
+#v-precedent { left: 16px; }
+#v-suivant { right: 16px; }
+.visionneuse-edition.visible ~ .visionneuse-corps img { max-height: none; }
