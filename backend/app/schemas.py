@@ -30,6 +30,12 @@ class PendingUpdate(BaseModel):
     nom_exploitant: Optional[str] = None
 
 
+class FactureUpdate(BaseModel):
+    """Champs modifiables sur une facture deja archivee."""
+    numero_facture: Optional[str] = None
+    nom_exploitant: Optional[str] = None
+
+
 class ValidationResult(BaseModel):
     id: int
     statut: str

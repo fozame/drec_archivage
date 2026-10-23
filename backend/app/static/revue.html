@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Verifier / renommer</title>
-<link rel="stylesheet" href="/static/style.css?v=2">
+<link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
 <nav>
@@ -35,7 +35,7 @@
   </div>
 </main>
 
-<script src="/static/app.js?v=2"></script>
+<script src="/static/app.js?v=3"></script>
 <script>
 let ordreActuel = "desc";
 let items = [];
@@ -115,6 +115,7 @@ function afficherFormulaire(item) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ numero_facture: champNumero.value, nom_exploitant: champNom.value }),
     });
+    if (maj.numero_facture && champNumero.value !== maj.numero_facture) champNumero.value = maj.numero_facture;
     document.getElementById("nom-suggere").textContent = maj.nom_suggere || "(incomplet)";
   }
 

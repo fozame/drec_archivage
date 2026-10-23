@@ -10,7 +10,7 @@ import re
 import difflib
 
 PRODUITS = ["ADMP", "AGR", "DE", "DR", "FE", "FH", "FST", "HOM", "LOYER", "LS",
-            "PEN", "RADIF", "RAM", "RARN", "REPDIP", "RFOR", "ROP", "RPIP", "VIGN", "VSAT"]
+            "PEN", "RADIF", "RAM", "RARN", "REPDIP", "REPINT", "RFOR", "ROP", "RPIP", "VIGN", "VSAT"]
 
 DELEGATIONS = {"Y": "Yaounde", "B": "Bamenda", "D": "Douala", "G": "Garoua"}
 

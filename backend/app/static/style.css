@@ -372,9 +372,12 @@ body.verrouille { overflow: hidden; }
 }
 
 .visionneuse-corps img {
-  max-width: 100%;
-  max-height: 100%;
+  max-width: calc(100vw - 180px);
+  max-height: calc(100vh - 100px);
+  width: auto;
+  height: auto;
   object-fit: contain;
+  background: white;
   border-radius: 6px;
   box-shadow: 0 8px 32px rgba(0,0,0,.5);
 }
@@ -474,3 +477,22 @@ body.verrouille { overflow: hidden; }
 }
 
 .toast.visible { opacity: 1; transform: translateY(0); }
+
+.visionneuse-edition {
+  display: none;
+  gap: 12px;
+  align-items: flex-end;
+  padding: 0 20px 14px;
+  color: #d1d5db;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.visionneuse-edition.visible { display: flex; }
+.visionneuse-edition label { display: flex; flex-direction: column; gap: 4px; }
+.visionneuse-edition input {
+  padding: 8px 10px; border-radius: 6px; border: 1px solid #4b5563;
+  background: #1f2430; color: white; font-size: 14px; min-width: 240px;
+}
+.visionneuse-edition button { background: rgba(255,255,255,.12); color: white; }
+.visionneuse-edition button.primaire { background: var(--primary); }
+.visionneuse-edition.visible ~ .visionneuse-corps img { max-height: calc(100vh - 175px); }

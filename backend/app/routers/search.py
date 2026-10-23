@@ -8,7 +8,10 @@ from sqlalchemy.orm import Session
 from ..config import FACTURES_DIR
 from ..database import get_db
 from ..models import Facture
-from ..schemas import FactureOut
+from ..schemas import FactureOut, FactureUpdate
+from ..ocr.normalisation import (normaliser_numero_facture, extraire_produit,
+    extraire_delegation, numero_pour_nom_fichier, nettoyer_nom_exploitant)
+from ..storage import chemin_final, deplacer_vers_final
 
 router = APIRouter(prefix="/api/factures", tags=["recherche"])
 
@@ -73,3 +76,48 @@ def supprimer_facture(facture_id: int, db: Session = Depends(get_db)):
     db.delete(facture)
     db.commit()
     return {"ok": True, "message": "Facture supprimee."}
+
+
+@router.put("/{facture_id}", response_model=FactureOut)
+def modifier_facture(facture_id: int, modif: FactureUpdate, db: Session = Depends(get_db)):
+    """Corrige une facture deja archivee (numero, produit, exploitant) :
+    recalcule delegation/produit, renomme et deplace le fichier dans le bon
+    dossier, puis met a jour la base."""
+    facture = db.query(Facture).get(facture_id)
+    if not facture:
+        raise HTTPException(404, "Facture introuvable")
+
+    numero = facture.numero_facture
+    nom = facture.nom_exploitant
+    if modif.numero_facture is not None and modif.numero_facture.strip():
+        numero, _, _ = normaliser_numero_facture(modif.numero_facture)
+    if modif.nom_exploitant is not None and modif.nom_exploitant.strip():
+        nom = modif.nom_exploitant.strip()
+
+    produit = extraire_produit(numero)
+    delegation = extraire_delegation(numero)
+    if produit is None:
+        raise HTTPException(400, "Numero invalide. Format attendu : 26A/REPDIP/D/123")
+
+    ancien = FACTURES_DIR / facture.chemin_fichier
+    if not ancien.exists():
+        raise HTTPException(404, "Fichier introuvable sur le disque")
+
+    nom_fichier = nettoyer_nom_exploitant(nom) + "__" + numero_pour_nom_fichier(numero)
+    annee = None
+    parts = Path(facture.chemin_fichier).parts
+    if len(parts) >= 2 and parts[1].isdigit():
+        annee = int(parts[1])  # on garde l'annee de classement d'origine
+    relatif = chemin_final(delegation, produit, nom_fichier, ancien.suffix.lower(), annee)
+    if (FACTURES_DIR / relatif) != ancien:
+        nouveau = deplacer_vers_final(ancien, relatif)
+        facture.chemin_fichier = str(nouveau)
+
+    facture.numero_facture = numero
+    facture.produit = produit
+    facture.delegation = delegation
+    facture.nom_exploitant = nom
+    facture.verifie_manuellement = True
+    db.commit()
+    db.refresh(facture)
+    return facture

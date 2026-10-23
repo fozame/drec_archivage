@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Rechercher une facture</title>
-<link rel="stylesheet" href="/static/style.css?v=2">
+<link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
 <nav>
@@ -47,10 +47,17 @@
       <span id="v-position" style="color:#6b7280; margin-left:10px; font-size:13px;"></span>
     </div>
     <div class="visionneuse-actions">
+      <button id="v-modifier">Modifier</button>
       <button id="v-imprimer">Imprimer</button>
       <button class="danger" id="v-supprimer">Supprimer</button>
       <button id="v-fermer">✕ Fermer</button>
     </div>
+  </div>
+  <div class="visionneuse-edition" id="v-edition">
+    <label>Numero <input type="text" id="e-numero" placeholder="26A/REPDIP/D/123"></label>
+    <label>Exploitant <input type="text" id="e-nom"></label>
+    <button class="primaire" id="e-enregistrer">Enregistrer</button>
+    <button id="e-annuler">Annuler</button>
   </div>
   <div class="visionneuse-corps">
     <button class="v-nav" id="v-precedent" title="Precedent (fleche gauche)">&#8592;</button>
@@ -59,7 +66,7 @@
   </div>
 </div>
 
-<script src="/static/app.js?v=2"></script>
+<script src="/static/app.js?v=3"></script>
 <script>
 const champRecherche = document.getElementById("champ-recherche");
 const corpsResultats = document.getElementById("corps-resultats");
@@ -107,7 +114,7 @@ function ouvrirVisionneuse(index) {
 function afficherFactureActuelle() {
   const f = resultatsActuels[indexActuel];
   if (!f) return;
-  vImage.src = `/api/factures/${f.id}/fichier`;
+  vImage.src = `/api/factures/${f.id}/fichier?t=${Date.now()}`;
   vNumero.textContent = f.numero_facture;
   vNom.textContent = f.nom_exploitant;
   vPosition.textContent = `${indexActuel + 1} / ${resultatsActuels.length}`;
@@ -133,25 +140,73 @@ document.getElementById("v-suivant").onclick = factureSuivante;
 
 document.addEventListener("keydown", e => {
   if (!visionneuse.classList.contains("visible")) return;
+  if (e.target.tagName === "INPUT") return;
   if (e.key === "Escape") fermerVisionneuse();
   if (e.key === "ArrowLeft") facturePrecedente();
   if (e.key === "ArrowRight") factureSuivante();
 });
 
-// Impression : charge l'image dans un iframe cache puis declenche l'impression
-// du navigateur (au lieu d'imprimer toute la page avec le menu, la recherche...).
+// Impression : on construit une mini-page dont l'image est ajustee a une
+// feuille A4 (marges 10 mm, proportions conservees, rien n'est coupe), puis
+// on imprime cette page dans un iframe cache.
 document.getElementById("v-imprimer").onclick = () => {
   const f = resultatsActuels[indexActuel];
   if (!f) return;
+  const url = `${location.origin}/api/factures/${f.id}/fichier`;
   const iframe = document.createElement("iframe");
-  iframe.style.display = "none";
+  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
   document.body.appendChild(iframe);
-  iframe.onload = () => {
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${f.numero_facture}</title>
+    <style>
+      @page { size: A4 portrait; margin: 10mm; }
+      html, body { margin: 0; padding: 0; }
+      img { display: block; width: 190mm; height: 277mm; object-fit: contain; }
+    </style></head><body><img id="im" src="${url}"></body></html>`);
+  doc.close();
+  const im = doc.getElementById("im");
+  const lancer = () => {
     iframe.contentWindow.focus();
     iframe.contentWindow.print();
-    setTimeout(() => document.body.removeChild(iframe), 1000);
+    setTimeout(() => iframe.remove(), 2000);
   };
-  iframe.src = `/api/factures/${f.id}/fichier`;
+  if (im.complete) lancer(); else { im.onload = lancer; im.onerror = () => { afficherToast("Impossible de charger l'image", true); iframe.remove(); }; }
+};
+
+// Modification d'une facture deja archivee (numero / exploitant)
+const vEdition = document.getElementById("v-edition");
+document.getElementById("v-modifier").onclick = () => {
+  const f = resultatsActuels[indexActuel];
+  if (!f) return;
+  document.getElementById("e-numero").value = f.numero_facture;
+  document.getElementById("e-nom").value = f.nom_exploitant;
+  vEdition.classList.toggle("visible");
+};
+document.getElementById("e-annuler").onclick = () => vEdition.classList.remove("visible");
+document.getElementById("e-enregistrer").onclick = async () => {
+  const f = resultatsActuels[indexActuel];
+  try {
+    const maj = await appelApi(`/api/factures/${f.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        numero_facture: document.getElementById("e-numero").value,
+        nom_exploitant: document.getElementById("e-nom").value,
+      }),
+    });
+    resultatsActuels[indexActuel] = maj;
+    vEdition.classList.remove("visible");
+    afficherFactureActuelle();
+    afficherToast("Facture modifiee et reclassee.");
+    // rafraichit le tableau en arriere-plan sans perdre la position
+    corpsResultats.querySelector(`tr[data-index="${indexActuel}"]`).innerHTML = `
+      <td>${maj.numero_facture}</td><td>${maj.nom_exploitant}</td><td>${maj.produit || '-'}</td>
+      <td>${maj.delegation || '-'}</td><td>${maj.code_client || '-'}</td>
+      <td>${new Date(maj.date_import).toLocaleDateString('fr-FR')}</td>`;
+  } catch (err) {
+    afficherToast("Erreur : " + err.message, true);
+  }
 };
 
 document.getElementById("v-supprimer").onclick = async () => {
